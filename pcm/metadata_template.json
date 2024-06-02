@@ -21,17 +21,13 @@
     },
     "license": "LGPL-3.0",
     "resources": {
-      "homepage": "https://github.com/TheJigsApp/kicad-testpoints"
+      "homepage": "https://github.com/TheJigsApp/kicad-testpoints-pcm"
     },
     "versions": [
         {
-          "version": "1.0",
+          "version": "0.1.0",
           "status": "stable",
-          "kicad_version": "8.0",
-          "download_sha256": "fa88f458e0bba310ae27864c763789ff2c89d5e23b45df135f42550ed58f17db",
-          "download_size": 8727,                                      
-          "download_url": "https://github.com/TheJigsApp/kicad-testpoints",
-          "install_size": 16862
+          "kicad_version": "8.0"
         }    
     ]
 }
