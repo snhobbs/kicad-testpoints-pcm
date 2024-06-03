@@ -1,21 +1,23 @@
-## Deploying
-The workflows are currently not working so here's the manual method:
+# KiCAD Test Points
+This plugin generates a JigApp compatible test point report for generating bed-of-nails
+testers.
 
-+ Bump the version to match the tag:
-```python
-bumpversion --current-version 0.1.3 patch pcm/metadata_template.json kicadtestpoints/resource/_version.py
-```
-+ Make the tag
-+ Run the build script
-```sh
-python3 pcm/build.py
-```
-+ This puts our new PCM compatible zip in /build which we can add as an asset to the release
-+ When uploaded this appears as:
-https://github.com/TheJigsApp/kicad-testpoints-pcm/releases/download/0.1.4/kicadtestpoints-0.1.4-pcm.zip
-which matches the metadata.json so its fine.
-+ The package validity can be checked with (git@gitlab.com:kicad/addons/metadata.git)
-+ The various integrity stats should be integrated with their CI tools
+This plugin is similar to the command line tool [kicad-testpoints](https://github.com/TheJigsApp/kicad-testpoints) except it can be used entirely within the KiCAD user interface (no terminals required).
+
+## Use
+Any pad can be set as a test point. 
+Select the pad and edit it's properties. 
+Set the 'Fabrication property' drop-down to 'Test point pad'.
+
+![Setting the fabrication property](pad-properties-window.png)
+
+Run the plugin, select the output file and confirm.
+
+![Test Point Report Window](test-point-report-window.png)
+
+The plugin pulls creates the report as a csv.
+
+![Test Point Report CSV](test-point-report.png)
 
 ## Acknowledgements
 + KiCAD PCM Packaging: Fully based off of (https://github.com/sparkfun/SparkFun_KiCad_Panelizer).
