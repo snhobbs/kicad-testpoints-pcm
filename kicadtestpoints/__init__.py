@@ -1,21 +1,16 @@
 import os
 import sys
-import subprocess
 import threading
 import time
 
 import wx
 import wx.aui
-from wx import FileConfig
 
-import os
-from .util import add_paths
-dir_path = os.path.dirname(os.path.realpath(__file__))
-paths = dir_path
+from .plugin import Plugin, Meta
+plugin = Plugin()
+plugin.register()
 
-toolname = "kicadtestpoints"
-
-def check_for_panelizer_button():
+def check_for_button():
     # From Miles McCoo's blog
     # https://kicad.mmccoo.com/2017/03/05/adding-your-own-command-buttons-to-the-pcbnew-gui/
     def find_pcbnew_window():
@@ -44,27 +39,15 @@ def check_for_panelizer_button():
         if button_wx_item_id == 0 or not top_tb.FindTool(button_wx_item_id):
             top_tb.AddSeparator()
             button_wx_item_id = wx.NewId()
-            top_tb.AddTool(button_wx_item_id, toolname , bm,
-                           "KiCAD TestPoints", wx.ITEM_NORMAL)
+            top_tb.AddTool(button_wx_item_id, Meta.toolname, bm,
+                           Meta.short_desciption, wx.ITEM_NORMAL)
             top_tb.Bind(wx.EVT_TOOL, callback, id=button_wx_item_id)
             top_tb.Realize()
 
 
-try:
-    with add_paths(paths):
-        from .plugin import PanelizerPlugin
-    plugin = PanelizerPlugin()
-    plugin.register()
-except Exception as e:
-    print(e)
-    import logging
-    root = logging.getLogger()
-    root.debug(repr(e))
-
 # Add a button the hacky way if plugin button is not supported
 # in pcbnew, unless this is linux.
 if not plugin.pcbnew_icon_support and not sys.platform.startswith('linux'):
-    t = threading.Thread(target=check_for_panelizer_button)
+    t = threading.Thread(target=check_for_button)
     t.daemon = True
     t.start()
-
