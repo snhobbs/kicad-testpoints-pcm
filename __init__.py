@@ -1,1 +1,1 @@
-from .SparkFunKiCadPanelizer import plugin
+from .kicadtestpoints import plugin

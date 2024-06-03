@@ -14,7 +14,8 @@ python3 pcm/build.py
 + When uploaded this appears as:
 https://github.com/TheJigsApp/kicad-testpoints-pcm/releases/download/0.1.4/kicadtestpoints-0.1.4-pcm.zip
 which matches the metadata.json so its fine.
-
++ The package validity can be checked with (git@gitlab.com:kicad/addons/metadata.git)
++ The various integrity stats should be integrated with their CI tools
 
 ## Acknowledgements
 + KiCAD PCM Packaging: Fully based off of (https://github.com/sparkfun/SparkFun_KiCad_Panelizer).

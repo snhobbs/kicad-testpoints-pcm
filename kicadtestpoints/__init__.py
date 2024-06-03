@@ -12,9 +12,8 @@ import os
 from .util import add_paths
 dir_path = os.path.dirname(os.path.realpath(__file__))
 paths = dir_path
-#paths = [
-#    os.path.join(dir_path, 'deps'), 
-#]
+
+toolname = "kicadtestpoints"
 
 def check_for_panelizer_button():
     # From Miles McCoo's blog
@@ -45,8 +44,8 @@ def check_for_panelizer_button():
         if button_wx_item_id == 0 or not top_tb.FindTool(button_wx_item_id):
             top_tb.AddSeparator()
             button_wx_item_id = wx.NewId()
-            top_tb.AddTool(button_wx_item_id, "SparkFunKiCadPanelizer", bm,
-                           "SparkFun KiCad Panelizer", wx.ITEM_NORMAL)
+            top_tb.AddTool(button_wx_item_id, toolname , bm,
+                           "KiCAD TestPoints", wx.ITEM_NORMAL)
             top_tb.Bind(wx.EVT_TOOL, callback, id=button_wx_item_id)
             top_tb.Realize()
 
@@ -58,7 +57,7 @@ try:
     plugin.register()
 except Exception as e:
     print(e)
-    import logging    
+    import logging
     root = logging.getLogger()
     root.debug(repr(e))
 
