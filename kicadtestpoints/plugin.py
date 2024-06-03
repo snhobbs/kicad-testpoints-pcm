@@ -14,7 +14,7 @@ class Meta:
     short_description="TheJigsApp KiCAD Test Point Report"
     frame_title="TheJigsApp KiCAD Test Point Report"
     website="https://www.thejigsapp.com"
-    version='0.1.0'
+    version='0.1.5'
 
 
 # Table of fields and how to get them
