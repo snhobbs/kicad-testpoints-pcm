@@ -1,0 +1,33 @@
+{
+    "$schema": "https://go.kicad.org/pcm/schemas/v1",
+    "name": "KiCad Testpoints",
+    "description": "Generate a test point report from a schematic",
+    "description_full": "Uses the fabrication property of pads to mark them as test points. The plugin reads those properties and generates a spreadsheet with the pad identifiers, nets, characteristics, and position on the board. The report is generated in the standard JigsApp format.",
+    "identifier": "com.github.TheJigsApp.kicadtestpoints",
+    "type": "plugin",
+    "author": {
+      "name": "The JigsApp",
+      "contact": {
+        "web": "https://www.thejigsapp.com",
+        "github": "https://github.com/TheJigsApp"
+      }
+    },
+    "maintainer": {
+      "name": "The JigsApp",
+      "contact": {
+        "web": "https://www.thejigsapp.com",
+        "github": "https://github.com/TheJigsApp"
+      }
+    },
+    "license": "LGPL-3.0",
+    "resources": {
+      "homepage": "https://github.com/TheJigsApp/kicad-testpoints-pcm"
+    },
+    "versions": [
+        {
+          "version": "0.1.6",
+          "status": "stable",
+          "kicad_version": "8.0"
+        }    
+    ]
+}
