@@ -3,11 +3,16 @@ on:
   workflow_dispatch:
     branches: 
 
+permissions:
+    contents: write
+
 jobs:
   build:
     
     name: Build
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
 
     steps:
       - name: Checkout
