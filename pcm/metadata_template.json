@@ -27,8 +27,7 @@
         {
           "version": "0.1.6",
           "status": "stable",
-          "kicad_version": "8.0",
-          "download_url": "https://github.com/TheJigsApp/kicad-testpoints/releases/download/0.1.6/kicadtestpoints-0.1.6-pcm.zip"
+          "kicad_version": "8.0"
         }    
     ]
 }
