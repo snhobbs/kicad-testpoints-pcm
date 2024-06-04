@@ -19,5 +19,9 @@ The plugin pulls creates the report as a csv.
 
 ![Test Point Report CSV](test-point-report.png)
 
+## Links
++ [Blog Post](https://www.thejigsapp.com/blog/2024/06/03/kicad-testpoints-plugin/)
++ [Video Introduction](https://www.youtube.com/watch?v=Z7aEWe4d0jE)
+
 ## Acknowledgements
 + KiCAD PCM Packaging: Fully based off of (https://github.com/sparkfun/SparkFun_KiCad_Panelizer).
