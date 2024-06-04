@@ -3,7 +3,7 @@ The workflows are currently not working so here's the manual method:
 
 + Bump the version to match the tag:
 ```python
-bumpversion --current-version 0.1.3 patch pcm/metadata_template.json kicadtestpoints/resource/_version.py
+bumpversion --current-version 0.1.3 patch pcm/metadata_template.json kicadtestpoints/plugin.py kicadtestpoints/resource/_version.py 
 ```
 + Make the tag
 + Run the build script
@@ -17,5 +17,4 @@ which matches the metadata.json so its fine.
 + The package validity can be checked with (git@gitlab.com:kicad/addons/metadata.git)
 + The various integrity stats should be integrated with their CI tools
 
-## Acknowledgements
-+ KiCAD PCM Packaging: Fully based off of (https://github.com/sparkfun/SparkFun_KiCad_Panelizer).
+Follow these instructions: https://gitlab.com/kicad/addons/metadata

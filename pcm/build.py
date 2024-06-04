@@ -58,7 +58,7 @@ else:
 # Update download URL
 md['versions'][0].update({
     'version': verstr,
-    'download_url': 'https://github.com/TheJigsApp/kicad-testpoints/releases/download/v{0}/kicadtestpoints-{0}-pcm.zip'.format(verstr)
+    'download_url': 'https://github.com/TheJigsApp/kicad-testpoints-pcm/releases/download/v{0}/kicadtestpoints-{0}-pcm.zip'.format(verstr)
 })
 
 # Update metadata.json

@@ -3,8 +3,9 @@ import csv
 import wx
 import wx.aui
 import wx.lib.buttons as buttons
-
+from pathlib import Path
 import pcbnew
+
 
 class Meta:
     toolname="kicadtestpoints"
@@ -14,7 +15,17 @@ class Meta:
     short_description="TheJigsApp KiCAD Test Point Report"
     frame_title="TheJigsApp KiCAD Test Point Report"
     website="https://www.thejigsapp.com"
-    version='0.1.6'
+    version='0.1.7'
+
+
+def get_pad_side(p: pcbnew.PAD):
+    """
+    As footprints can be on the top or bottom and the pad position is relative
+    to the footprint we need to use both the footprint and the pad position to get
+    the correct side. As the top layer/side is 0 then we can do the following.
+    """
+    fp: pcbnew.FOOTPRINT = p.GetParentFootprint()
+    return "BOTTOM" if (fp.GetSide() - p.GetLayer()) else "TOP"
 
 
 # Table of fields and how to get them
@@ -23,16 +34,17 @@ _fields = {
     'source pad': lambda p: p.GetNumber(),
     'net': lambda p: p.GetShortNetname(),
     'net class': lambda p: p.GetNetClassName(),
-    'side': lambda p: "TOP" if p.GetLayer() == 0 else "BOTTOM",
+    'side': get_pad_side,
     'x': lambda p: pcbnew.ToMM(p.GetCenter())[0],
     'y': lambda p: pcbnew.ToMM(p.GetCenter())[1],
-    'type': lambda p: "SMT" if (p.GetDrillSizeX() == 0 and p.GetDrillSizeY() == 0) else "THRU"
+    'pad type': lambda p: "SMT" if (p.GetDrillSizeX() == 0 and p.GetDrillSizeY() == 0) else "THRU",
+    'footprint side': lambda p: "BOTTOM" if p.GetParentFootprint().GetSide() else "TOP"
 }
 
 
-def write_csv(data: list[dict], filename: str):
+def write_csv(data: list[dict], filename: Path):
     fieldnames = data[0].keys()
-    with open(filename, 'w', newline='') as csvfile:
+    with filename.open('w', newline='') as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         if fieldnames is not None:
             writer.writeheader()
@@ -64,18 +76,21 @@ class SuccessPanel(wx.Panel):
         sizer.Add(success_label, 0, wx.ALL, 5)
         self.SetSizer(sizer)
 
+
 class MyPanel(wx.Panel):
     def __init__(self, parent):
         super().__init__(parent)
 
-        #self.panel = wx.Panel(self)
-
         # Get current working directory
-        default_file_path = os.path.join(os.getcwd(), f"{Meta.toolname}-report.csv")
+        dir_ = Path(os.getcwd())
+        wd = Path(pcbnew.GetBoard().GetFileName()).absolute()
+        if wd.exists():
+            dir_ = wd.parent
+        default_file_path = (dir_ / f"{Meta.toolname}-report.csv")
 
         # File output selector
         file_output_label = wx.StaticText(self, label="File Output:")
-        self.file_output_selector = wx.FilePickerCtrl(self, style=wx.FLP_SAVE | wx.FLP_USE_TEXTCTRL, wildcard="CSV files (*.csv)|*.csv", path=default_file_path)
+        self.file_output_selector = wx.FilePickerCtrl(self, style=wx.FLP_SAVE | wx.FLP_USE_TEXTCTRL, wildcard="CSV files (*.csv)|*.csv", path=default_file_path.as_posix())
 
         # Lorem Ipsum text
         lorem_text = wx.StaticText(self, label=Meta.body)
@@ -105,7 +120,7 @@ class MyPanel(wx.Panel):
         self.Layout()
 
     def on_submit(self, event):
-        file_path = self.file_output_selector.GetPath()
+        file_path = Path(self.file_output_selector.GetPath())
         if file_path:
             print("Submitting...")
             print("File Path:", file_path)
@@ -115,7 +130,7 @@ class MyPanel(wx.Panel):
             data = build_test_point_report(board)
             write_csv(data, filename=file_path)
             self.GetTopLevelParent().EndModal(wx.ID_OK)
-            #self.GetParent().ShowSuccessPanel()
+            # self.GetParent().ShowSuccessPanel()
         else:
             wx.MessageBox("Please select a file output path.", "Error", wx.OK | wx.ICON_ERROR)
 
@@ -134,16 +149,12 @@ class AboutPanel(wx.Panel):
         message_text = wx.StaticText(self, label=Meta.about_text)
         version_text = wx.StaticText(self, label=f"Version: {Meta.version}")
 
-        import wx.lib.agw.hyperlink as hl
+        from wx.lib.agw.hyperlink import HyperLinkCtrl
+        link = HyperLinkCtrl(self, wx.ID_ANY,
+                             f"Visit {Meta.website} for more information.",
+                             URL=Meta.website)
 
-        link = wx.lib.agw.hyperlink.HyperLinkCtrl(self, wx.ID_ANY,
-            f"Visit {Meta.website} for more information.",
-            URL=Meta.website)
-
-        #link.SetFont(font)
-        #link.SetBold(True)
-        link.SetColours(wx.BLUE,wx.BLUE,wx.BLUE)
-        link.SetForegroundColour(wx.BLUE)
+        link.SetColours(wx.BLUE, wx.BLUE, wx.BLUE)
         version_text.SetFont(bold)
         message_text.SetFont(font)
 
