@@ -4,6 +4,12 @@ testers.
 
 This plugin is similar to the command line tool [kicad-testpoints](https://github.com/TheJigsApp/kicad-testpoints) except it can be used entirely within the KiCAD user interface (no terminals required).
 
+[![Watch the video](https://img.youtube.com/vi/Z7aEWe4d0jE/hqdefault.jpg)](https://www.youtube.com/embed/Z7aEWe4d0jE)
+
+[<img src="https://img.youtube.com/vi/Z7aEWe4d0jE/hqdefault.jpg" width="600" height="300"
+/>](https://www.youtube.com/embed/Z7aEWe4d0jE)
+
+
 ## Use
 Any pad can be set as a test point. 
 Select the pad and edit it's properties. 
