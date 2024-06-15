@@ -1,5 +1,5 @@
 # KiCAD Test Points
-This plugin generates a JigApp compatible test point report for generating bed-of-nails
+This plugin generates a JigsApp compatible test point report for generating bed-of-nails
 testers.
 
 This plugin is similar to the command line tool [kicad-testpoints](https://github.com/TheJigsApp/kicad-testpoints) except it can be used entirely within the KiCAD user interface (no terminals required).
