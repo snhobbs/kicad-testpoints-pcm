@@ -1,5 +1,6 @@
 import os
 import csv
+import functools
 import wx
 import wx.aui
 import wx.lib.buttons as buttons
@@ -10,7 +11,7 @@ import pcbnew
 class Meta:
     toolname="kicadtestpoints"
     title="Test Point Report"
-    body="Choose test points by setting the desired pads 'Fabrication Property' to 'Test Point Pad'. The output is formated as a JigsApp test point report."
+    body="Choose test points by setting the desired pads 'Fabrication Property' to 'Test Point Pad'. The output default is in the JigsApp test point report style."
     about_text="This plugin generates TheJigsApp style test points reports. Test more, worry less."
     short_description="TheJigsApp KiCAD Test Point Report"
     frame_title="TheJigsApp KiCAD Test Point Report"
@@ -18,7 +19,21 @@ class Meta:
     version='0.1.7'
 
 
-def get_pad_side(p: pcbnew.PAD):
+class Settings:
+    """
+    All the options that can be passed
+    """
+    origin_options: tuple[int, str] = (
+        (0, "Gerber"), ("Grid", 1), ("Drill", 2)
+    )
+
+    def __init__(self):
+        self.origin_type: int = 0
+        self.flip_x: boolean = False
+        self.flip_y: boolean = False
+
+
+def get_pad_side(p: pcbnew.PAD, **kwargs):
     """
     As footprints can be on the top or bottom and the pad position is relative
     to the footprint we need to use both the footprint and the pad position to get
@@ -28,17 +43,48 @@ def get_pad_side(p: pcbnew.PAD):
     return "BOTTOM" if (fp.GetSide() - p.GetLayer()) else "TOP"
 
 
+def calc_pad_position(center: tuple[float, float], origin: tuple[float, float], xmult: int = 1, ymult: int = 1):
+    return (center[0]-origin[0]) * xmult, (center[1]-origin[1]) * ymult
+
+
+def get_pad_position(p: pcbnew.PAD, settings: Settings) -> tuple[float, float]:
+    """
+    Get the center of the pad, the origin setting, and the quadrant setting,
+    calculate the transformed position.
+
+    The position internal to kicad never changes. The position is always the distance from
+    the top left with x increasing to the right and y increasing down.
+
+    Take the origin location and calculate the distance. Then multiple the axis so it is
+    increasing in the desired direction. To match the gerbers this should be increasing right and up.
+    """
+    board = p.GetBoard()
+    ds = board.GetDesignSettings()
+    origin = (0, 0)
+    if settings.origin_type == 0:
+        pass
+    elif settings.origin_type == 1:
+        origin = pcbnew.ToMM(ds.GetGridOrigin())
+    elif settings.origin_type == 2:
+        origin = pcbnew.ToMM(ds.GetAuxOrigin())
+    center = pcbnew.ToMM(p.GetCenter())
+
+    ymult = -1 if settings.flip_y else 1
+    xmult = -1 if settings.flip_x else 1
+    return calc_pad_position(origin=origin, center=center, xmult=xmult, ymult=ymult)
+
+
 # Table of fields and how to get them
 _fields = {
-    'source ref des': lambda p: p.GetParentFootprint().GetReferenceAsString(),
-    'source pad': lambda p: p.GetNumber(),
-    'net': lambda p: p.GetShortNetname(),
-    'net class': lambda p: p.GetNetClassName(),
+    'source ref des': (lambda p, **kwargs: p.GetParentFootprint().GetReferenceAsString()),
+    'source pad': (lambda p, **kwargs: p.GetNumber()),
+    'net': (lambda p, **kwargs: p.GetShortNetname()),
+    'net class': (lambda p, **kwargs: p.GetNetClassName()),
     'side': get_pad_side,
-    'x': lambda p: pcbnew.ToMM(p.GetCenter())[0],
-    'y': lambda p: pcbnew.ToMM(p.GetCenter())[1],
-    'pad type': lambda p: "SMT" if (p.GetDrillSizeX() == 0 and p.GetDrillSizeY() == 0) else "THRU",
-    'footprint side': lambda p: "BOTTOM" if p.GetParentFootprint().GetSide() else "TOP"
+    'x': (lambda p, **kwargs: get_pad_position(p, **kwargs)[0]),
+    'y': (lambda p, **kwargs: get_pad_position(p, **kwargs)[1]),
+    'pad type': (lambda p, **kwargs: "SMT" if (p.GetDrillSizeX() == 0 and p.GetDrillSizeY() == 0) else "THRU"),
+    'footprint side': (lambda p, **kwargs: "BOTTOM" if p.GetParentFootprint().GetSide() else "TOP")
 }
 
 
@@ -51,14 +97,14 @@ def write_csv(data: list[dict], filename: Path):
         writer.writerows(data)
 
 
-def build_test_point_report(board: pcbnew.BOARD) -> list[dict]:
+def build_test_point_report(board: pcbnew.BOARD, settings: Settings) -> list[dict]:
     test_point_property = 4
     lines = []
     for p in board.GetPads():
         if p.GetProperty() != test_point_property:
             continue
         lines.append({
-            key: value(p) for key, value in _fields.items()
+            key: value(p, settings=settings) for key, value in _fields.items()
         })
     return lines
 
@@ -77,10 +123,27 @@ class SuccessPanel(wx.Panel):
         self.SetSizer(sizer)
 
 
+def setattr_keywords(obj, name, value):
+    return setattr(obj, name, value)
+
+
 class MyPanel(wx.Panel):
     def __init__(self, parent):
         super().__init__(parent)
 
+        self.settings = Settings()
+        def set_origin_type(value: int):
+            self.settings.origin_type = value
+
+        settings_map = {
+            "flip_x": {"label": "X-axes increases left", "func": functools.partial(setattr_keywords, self.settings, "flip_x")},
+            "flip_y": {"label": "Y-axes increases up (Default)", "func": functools.partial(setattr_keywords, self.settings, "flip_y")},
+            "origin_type_0": {"label": "Page Origin (Default)", "func": functools.partial(set_origin_type, value=0)},
+            "origin_type_1": {"label": "Grid Origin", "func": functools.partial(set_origin_type, value=1)},
+            "origin_type_2": {"label": "Drill/File Origin", "func": functools.partial(set_origin_type, value=2)},
+        }
+
+        self.settings_map_by_label = {value["label"]: value for value in settings_map.values()}
         # Get current working directory
         dir_ = Path(os.getcwd())
         wd = Path(pcbnew.GetBoard().GetFileName()).absolute()
@@ -104,20 +167,49 @@ class MyPanel(wx.Panel):
         self.cancel_button.Bind(wx.EVT_BUTTON, self.on_cancel)
 
         # Horizontal box sizer for buttons
-        button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        button_sizer = wx.BoxSizer(wx.VERTICAL)
         button_sizer.Add(self.submit_button, 0, wx.ALL, 5)
         button_sizer.Add(self.cancel_button, 0, wx.ALL, 5)
 
+        self.origin_type_0 = wx.RadioButton(self, label=settings_map["origin_type_0"]["label"], style=wx.RB_GROUP)  # Grouping the
+        self.origin_type_1 = wx.RadioButton(self, label=settings_map["origin_type_1"]["label"])
+        self.origin_type_2 = wx.RadioButton(self, label=settings_map["origin_type_2"]["label"])
+        self.Bind(wx.EVT_RADIOBUTTON, self.on_radio_select)
+
+        self.flip_x = wx.CheckBox(self, label=settings_map["flip_x"]["label"])
+        self.flip_y = wx.CheckBox(self, label=settings_map["flip_y"]["label"])
+        self.flip_y.SetValue(True)
+
+        self.Bind(wx.EVT_CHECKBOX, self.on_checkbox_toggle)
+
         # Sizer for layout
         sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer.Add(self.origin_type_0, 0, wx.ALL, 10)
+        sizer.Add(self.origin_type_1, 0, wx.ALL, 10)
+        sizer.Add(self.origin_type_2, 0, wx.ALL, 10)
+        sizer.Add(self.flip_x, 0, wx.ALL, 10)
+        sizer.Add(self.flip_y, 0, wx.ALL, 10)
+
         sizer.Add(file_output_label, 0, wx.ALL, 5)
         sizer.Add(self.file_output_selector, 0, wx.EXPAND | wx.ALL, 5)
         sizer.Add(lorem_text, 1, wx.EXPAND | wx.ALL, 5)
         sizer.Add(button_sizer, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
 
         self.SetSizer(sizer)
-        self.SetMinSize((400, 200))  # Set a minimum width and height for the frame
+        #self.SetSizeHints(1000,1000)
+        #self.SetMinSize((1000, 1000))  # Set a minimum width and height for the frame
         self.Layout()
+
+
+    def on_checkbox_toggle(self, event):
+        checkbox = event.GetEventObject()
+        label = checkbox.GetLabel()
+        self.settings_map_by_label[label]['func'](checkbox.GetValue())
+
+    def on_radio_select(self, event):
+        radio = event.GetEventObject()
+        label = radio.GetLabel()
+        self.settings_map_by_label[label]['func']()
 
     def on_submit(self, event):
         file_path = Path(self.file_output_selector.GetPath())
@@ -127,10 +219,13 @@ class MyPanel(wx.Panel):
 
             board = pcbnew.GetBoard()
 
-            data = build_test_point_report(board)
-            write_csv(data, filename=file_path)
-            self.GetTopLevelParent().EndModal(wx.ID_OK)
-            # self.GetParent().ShowSuccessPanel()
+            data = build_test_point_report(board, settings=self.settings)
+            if not data:
+                wx.MessageBox("No test point pads found, have you set any?", "Error", wx.OK | wx.ICON_ERROR)
+            else:
+                write_csv(data, filename=file_path)
+                self.GetTopLevelParent().EndModal(wx.ID_OK)
+                # self.GetParent().ShowSuccessPanel()
         else:
             wx.MessageBox("Please select a file output path.", "Error", wx.OK | wx.ICON_ERROR)
 
@@ -149,26 +244,35 @@ class AboutPanel(wx.Panel):
         message_text = wx.StaticText(self, label=Meta.about_text)
         version_text = wx.StaticText(self, label=f"Version: {Meta.version}")
 
+        pre_link_text = wx.StaticText(self, label=f"For more information")
         from wx.lib.agw.hyperlink import HyperLinkCtrl
         link = HyperLinkCtrl(self, wx.ID_ANY,
-                             f"Visit {Meta.website} for more information.",
+                             f"visit {Meta.website}",
                              URL=Meta.website)
 
         link.SetColours(wx.BLUE, wx.BLUE, wx.BLUE)
         version_text.SetFont(bold)
         message_text.SetFont(font)
+        pre_link_text.SetFont(font)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(version_text, 1, wx.EXPAND | wx.ALL, 10)
-        sizer.Add(message_text, 1, wx.EXPAND | wx.ALL, 10)
-        sizer.Add(link, 1, wx.EXPAND | wx.ALL, 10)
+        sizer.Add(version_text, 0, wx.EXPAND | wx.ALL, 10)
+        sizer.Add(message_text, 0, wx.EXPAND | wx.ALL, 10)
+        sizer.Add(pre_link_text, 0, wx.EXPAND | wx.ALL, 10)
+        sizer.Add(link, 0, wx.EXPAND | wx.ALL, 10)
 
         self.SetSizer(sizer)
 
 
 class MyDialog(wx.Dialog):
     def __init__(self, parent, title):
-        super().__init__(parent, title=title, size=(400, 300))
+        super().__init__(parent, title=title, size=(400, 600),
+                         style=wx.DEFAULT_DIALOG_STYLE | \
+                         wx.RESIZE_BORDER | \
+                         wx.MAXIMIZE_BOX | \
+                         wx.MINIMIZE_BOX)
+        self.EnableMaximizeButton()
+        self.EnableMinimizeButton()
 
         # Create a notebook with two tabs
         notebook = wx.Notebook(self)
@@ -181,8 +285,11 @@ class MyDialog(wx.Dialog):
 
         # Sizer for layout
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(notebook, 1, wx.EXPAND | wx.ALL, 5)
+        sizer.Add(notebook, 1, wx.EXPAND | wx.ALL, 10)
         self.SetSizer(sizer)
+        self.SetSizeHints(500, 600)  # Set minimum size hints
+        #self.Bind(wx.EVT_MAXIMIZE, self.on_maximize)
+        #self.Bind(wx.EVT_SIZE, self.on_size)
 
     def on_close(self, event):
         self.EndModal(wx.ID_CANCEL)
@@ -193,6 +300,16 @@ class MyDialog(wx.Dialog):
         self.GetSizer().Insert(0, self.success_panel)
         self.Layout()
 
+    def on_maximize(self, event):
+        self.fit_to_screen()
+
+    def on_size(self, event):
+        if self.IsMaximized():
+            self.fit_to_screen()
+
+    def fit_to_screen(self):
+        screen_width, screen_height = wx.DisplaySize()
+        self.SetSize(wx.Size(screen_width, screen_height))
 
 class Plugin(pcbnew.ActionPlugin, object):
 
