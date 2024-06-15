@@ -16,7 +16,7 @@ class Meta:
     short_description="TheJigsApp KiCAD Test Point Report"
     frame_title="TheJigsApp KiCAD Test Point Report"
     website="https://www.thejigsapp.com"
-    version='0.1.7'
+    version='0.1.8'
 
 
 class Settings:
