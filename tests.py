@@ -11,20 +11,15 @@ import plugin
 
 class TestPadPosition(unittest.TestCase):
     def test_calc_pad_position(self):
-        origin = (1,2)
-        center = (100,10)  # Position is to the bottom right of the origin
-        mult_settings = [
-            (1,1), # gerber coordinates
-            (1,-1),
-            (-1,1),
-            (-1,-1)
+        origin = (10,10) # in pixel coordinates
+        centers = [  # in pixel coordinates
+            (0,0),
+            (10,10),
         ]
-        expected_values = (
-            (99,8), # bottom right
-            (99,-8),
-            (-99,8),
-            (-99,-8)
+        expected_values = ( # cartesian
+            (-10,10),
+            (0,0)
         )
-        for mult, expected in zip(mult_settings, expected_values):
-            out = plugin.calc_pad_position(center, origin, mult[0], mult[1])
+        for center, expected in zip(centers, expected_values):
+            out = plugin.calc_pad_position(center, origin)
             assert out == expected

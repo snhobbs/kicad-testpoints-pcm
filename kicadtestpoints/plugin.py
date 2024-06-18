@@ -11,7 +11,10 @@ import pcbnew
 class Meta:
     toolname="kicadtestpoints"
     title="Test Point Report"
-    body="Choose test points by setting the desired pads 'Fabrication Property' to 'Test Point Pad'. The output default is in the JigsApp test point report style."
+    body='''Choose test points by setting the desired pads 'Fabrication Property' to 'Test Point Pad'. The output default is in the JigsApp test point report style.
+
+Coordinates are Cartesian with x increasing to the right and y increasing upwards. For correct agreement with generated gerbers and the component placement, ensure the origin used is consistent.
+    '''
     about_text="This plugin generates TheJigsApp style test points reports. Test more, worry less."
     short_description="TheJigsApp KiCAD Test Point Report"
     frame_title="TheJigsApp KiCAD Test Point Report"
@@ -23,14 +26,9 @@ class Settings:
     """
     All the options that can be passed
     """
-    origin_options: tuple[int, str] = (
-        (0, "Gerber"), ("Grid", 1), ("Drill", 2)
-    )
 
     def __init__(self):
-        self.origin_type: int = 0
-        self.flip_x: boolean = False
-        self.flip_y: boolean = False
+        self.use_aux_origin: bool = False
 
 
 def get_pad_side(p: pcbnew.PAD, **kwargs):
@@ -43,8 +41,12 @@ def get_pad_side(p: pcbnew.PAD, **kwargs):
     return "BOTTOM" if (fp.GetSide() - p.GetLayer()) else "TOP"
 
 
-def calc_pad_position(center: tuple[float, float], origin: tuple[float, float], xmult: int = 1, ymult: int = 1):
-    return (center[0]-origin[0]) * xmult, (center[1]-origin[1]) * ymult
+def calc_pad_position(center: tuple[float, float], origin: tuple[float, float]):
+    '''
+    Calculate pad position as relative to the origin and in cartesian coordinates.
+    The origin and center should be in native kicad pixel coordinates.
+    '''
+    return (center[0]-origin[0]), -1*(center[1]-origin[1])
 
 
 def get_pad_position(p: pcbnew.PAD, settings: Settings) -> tuple[float, float]:
@@ -61,17 +63,11 @@ def get_pad_position(p: pcbnew.PAD, settings: Settings) -> tuple[float, float]:
     board = p.GetBoard()
     ds = board.GetDesignSettings()
     origin = (0, 0)
-    if settings.origin_type == 0:
-        pass
-    elif settings.origin_type == 1:
-        origin = pcbnew.ToMM(ds.GetGridOrigin())
-    elif settings.origin_type == 2:
+    if settings.use_aux_origin:
         origin = pcbnew.ToMM(ds.GetAuxOrigin())
     center = pcbnew.ToMM(p.GetCenter())
 
-    ymult = -1 if settings.flip_y else 1
-    xmult = -1 if settings.flip_x else 1
-    return calc_pad_position(origin=origin, center=center, xmult=xmult, ymult=ymult)
+    return calc_pad_position(origin=origin, center=center)
 
 
 # Table of fields and how to get them
@@ -130,20 +126,8 @@ def setattr_keywords(obj, name, value):
 class MyPanel(wx.Panel):
     def __init__(self, parent):
         super().__init__(parent)
-
         self.settings = Settings()
-        def set_origin_type(value: int):
-            self.settings.origin_type = value
 
-        settings_map = {
-            "flip_x": {"label": "X-axes increases left", "func": functools.partial(setattr_keywords, self.settings, "flip_x")},
-            "flip_y": {"label": "Y-axes increases up (Default)", "func": functools.partial(setattr_keywords, self.settings, "flip_y")},
-            "origin_type_0": {"label": "Page Origin (Default)", "func": functools.partial(set_origin_type, value=0)},
-            "origin_type_1": {"label": "Grid Origin", "func": functools.partial(set_origin_type, value=1)},
-            "origin_type_2": {"label": "Drill/File Origin", "func": functools.partial(set_origin_type, value=2)},
-        }
-
-        self.settings_map_by_label = {value["label"]: value for value in settings_map.values()}
         # Get current working directory
         dir_ = Path(os.getcwd())
         wd = Path(pcbnew.GetBoard().GetFileName()).absolute()
@@ -167,28 +151,21 @@ class MyPanel(wx.Panel):
         self.cancel_button.Bind(wx.EVT_BUTTON, self.on_cancel)
 
         # Horizontal box sizer for buttons
-        button_sizer = wx.BoxSizer(wx.VERTICAL)
-        button_sizer.Add(self.submit_button, 0, wx.ALL, 5)
+        button_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        button_sizer.Add(self.submit_button, 0, wx.ALL | wx.EXPAND, 5)
         button_sizer.Add(self.cancel_button, 0, wx.ALL, 5)
 
-        self.origin_type_0 = wx.RadioButton(self, label=settings_map["origin_type_0"]["label"], style=wx.RB_GROUP)  # Grouping the
-        self.origin_type_1 = wx.RadioButton(self, label=settings_map["origin_type_1"]["label"])
-        self.origin_type_2 = wx.RadioButton(self, label=settings_map["origin_type_2"]["label"])
-        self.Bind(wx.EVT_RADIOBUTTON, self.on_radio_select)
-
-        self.flip_x = wx.CheckBox(self, label=settings_map["flip_x"]["label"])
-        self.flip_y = wx.CheckBox(self, label=settings_map["flip_y"]["label"])
-        self.flip_y.SetValue(True)
+        # Origin selectiondd
+        self.use_aux_origin_cb = wx.CheckBox(self, label="Use drill/place file origin")
+        self.use_aux_origin_cb.SetValue(True)
+        self.settings.use_aux_origin = self.use_aux_origin_cb.GetValue()
 
         self.Bind(wx.EVT_CHECKBOX, self.on_checkbox_toggle)
 
         # Sizer for layout
+        # sizer = wx.BoxSizer(wx.HORIZONTAL)
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.origin_type_0, 0, wx.ALL, 10)
-        sizer.Add(self.origin_type_1, 0, wx.ALL, 10)
-        sizer.Add(self.origin_type_2, 0, wx.ALL, 10)
-        sizer.Add(self.flip_x, 0, wx.ALL, 10)
-        sizer.Add(self.flip_y, 0, wx.ALL, 10)
+        sizer.Add(self.use_aux_origin_cb, 0, wx.ALL, 10)
 
         sizer.Add(file_output_label, 0, wx.ALL, 5)
         sizer.Add(self.file_output_selector, 0, wx.EXPAND | wx.ALL, 5)
@@ -203,13 +180,7 @@ class MyPanel(wx.Panel):
 
     def on_checkbox_toggle(self, event):
         checkbox = event.GetEventObject()
-        label = checkbox.GetLabel()
-        self.settings_map_by_label[label]['func'](checkbox.GetValue())
-
-    def on_radio_select(self, event):
-        radio = event.GetEventObject()
-        label = radio.GetLabel()
-        self.settings_map_by_label[label]['func']()
+        self.settings.use_aux_origin = checkbox.GetValue()
 
     def on_submit(self, event):
         file_path = Path(self.file_output_selector.GetPath())
@@ -244,10 +215,10 @@ class AboutPanel(wx.Panel):
         message_text = wx.StaticText(self, label=Meta.about_text)
         version_text = wx.StaticText(self, label=f"Version: {Meta.version}")
 
-        pre_link_text = wx.StaticText(self, label=f"For more information")
+        pre_link_text = wx.StaticText(self, label=f"For more information visit: ")
         from wx.lib.agw.hyperlink import HyperLinkCtrl
         link = HyperLinkCtrl(self, wx.ID_ANY,
-                             f"visit {Meta.website}",
+                             f"{Meta.website}",
                              URL=Meta.website)
 
         link.SetColours(wx.BLUE, wx.BLUE, wx.BLUE)
@@ -256,23 +227,22 @@ class AboutPanel(wx.Panel):
         pre_link_text.SetFont(font)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(version_text, 0, wx.EXPAND | wx.ALL, 10)
-        sizer.Add(message_text, 0, wx.EXPAND | wx.ALL, 10)
-        sizer.Add(pre_link_text, 0, wx.EXPAND | wx.ALL, 10)
-        sizer.Add(link, 0, wx.EXPAND | wx.ALL, 10)
+        sizer.Add(version_text, 1, wx.EXPAND | wx.ALL, 5)
+        sizer.Add(message_text, 1, wx.EXPAND | wx.ALL, 5)
+
+        link_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        link_sizer.Add(pre_link_text, 0, wx.EXPAND, 0)
+        link_sizer.Add(link, 0, wx.EXPAND, 0)
+        sizer.Add(link_sizer, 1, wx.EXPAND | wx.ALL, 5)
 
         self.SetSizer(sizer)
 
 
 class MyDialog(wx.Dialog):
     def __init__(self, parent, title):
-        super().__init__(parent, title=title, size=(400, 600),
+        super().__init__(parent, title=title,
                          style=wx.DEFAULT_DIALOG_STYLE | \
-                         wx.RESIZE_BORDER | \
-                         wx.MAXIMIZE_BOX | \
-                         wx.MINIMIZE_BOX)
-        self.EnableMaximizeButton()
-        self.EnableMinimizeButton()
+                         wx.RESIZE_BORDER)
 
         # Create a notebook with two tabs
         notebook = wx.Notebook(self)
@@ -284,12 +254,10 @@ class MyDialog(wx.Dialog):
         notebook.AddPage(about_panel, "About")
 
         # Sizer for layout
-        sizer = wx.BoxSizer(wx.VERTICAL)
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
         sizer.Add(notebook, 1, wx.EXPAND | wx.ALL, 10)
         self.SetSizer(sizer)
-        self.SetSizeHints(500, 600)  # Set minimum size hints
-        #self.Bind(wx.EVT_MAXIMIZE, self.on_maximize)
-        #self.Bind(wx.EVT_SIZE, self.on_size)
+        self.SetSizeHints(500, 500)  # Set minimum size hints
 
     def on_close(self, event):
         self.EndModal(wx.ID_CANCEL)
