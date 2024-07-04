@@ -1,0 +1,1 @@
+../libs/kicad-testpoints/src/kicad_testpoints/kicad_testpoints.py

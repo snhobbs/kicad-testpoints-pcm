@@ -1,12 +1,10 @@
 import os
-import csv
-import functools
 import wx
 import wx.aui
 import wx.lib.buttons as buttons
 from pathlib import Path
 import pcbnew
-
+from . kicad_testpoints import get_pads_by_property, get_pads, build_test_point_report, write_csv, Settings
 
 class Meta:
     toolname="kicadtestpoints"
@@ -20,89 +18,6 @@ Coordinates are Cartesian with x increasing to the right and y increasing upward
     frame_title="TheJigsApp KiCAD Test Point Report"
     website="https://www.thejigsapp.com"
     version='0.1.8'
-
-
-class Settings:
-    """
-    All the options that can be passed
-    """
-
-    def __init__(self):
-        self.use_aux_origin: bool = False
-
-
-def get_pad_side(p: pcbnew.PAD, **kwargs):
-    """
-    As footprints can be on the top or bottom and the pad position is relative
-    to the footprint we need to use both the footprint and the pad position to get
-    the correct side. As the top layer/side is 0 then we can do the following.
-    """
-    fp: pcbnew.FOOTPRINT = p.GetParentFootprint()
-    return "BOTTOM" if (fp.GetSide() - p.GetLayer()) else "TOP"
-
-
-def calc_pad_position(center: tuple[float, float], origin: tuple[float, float]):
-    '''
-    Calculate pad position as relative to the origin and in cartesian coordinates.
-    The origin and center should be in native kicad pixel coordinates.
-    '''
-    return (center[0]-origin[0]), -1*(center[1]-origin[1])
-
-
-def get_pad_position(p: pcbnew.PAD, settings: Settings) -> tuple[float, float]:
-    """
-    Get the center of the pad, the origin setting, and the quadrant setting,
-    calculate the transformed position.
-
-    The position internal to kicad never changes. The position is always the distance from
-    the top left with x increasing to the right and y increasing down.
-
-    Take the origin location and calculate the distance. Then multiple the axis so it is
-    increasing in the desired direction. To match the gerbers this should be increasing right and up.
-    """
-    board = p.GetBoard()
-    ds = board.GetDesignSettings()
-    origin = (0, 0)
-    if settings.use_aux_origin:
-        origin = pcbnew.ToMM(ds.GetAuxOrigin())
-    center = pcbnew.ToMM(p.GetCenter())
-
-    return calc_pad_position(origin=origin, center=center)
-
-
-# Table of fields and how to get them
-_fields = {
-    'source ref des': (lambda p, **kwargs: p.GetParentFootprint().GetReferenceAsString()),
-    'source pad': (lambda p, **kwargs: p.GetNumber()),
-    'net': (lambda p, **kwargs: p.GetShortNetname()),
-    'net class': (lambda p, **kwargs: p.GetNetClassName()),
-    'side': get_pad_side,
-    'x': (lambda p, **kwargs: get_pad_position(p, **kwargs)[0]),
-    'y': (lambda p, **kwargs: get_pad_position(p, **kwargs)[1]),
-    'pad type': (lambda p, **kwargs: "SMT" if (p.GetDrillSizeX() == 0 and p.GetDrillSizeY() == 0) else "THRU"),
-    'footprint side': (lambda p, **kwargs: "BOTTOM" if p.GetParentFootprint().GetSide() else "TOP")
-}
-
-
-def write_csv(data: list[dict], filename: Path):
-    fieldnames = data[0].keys()
-    with filename.open('w', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        if fieldnames is not None:
-            writer.writeheader()
-        writer.writerows(data)
-
-
-def build_test_point_report(board: pcbnew.BOARD, settings: Settings) -> list[dict]:
-    test_point_property = 4
-    lines = []
-    for p in board.GetPads():
-        if p.GetProperty() != test_point_property:
-            continue
-        lines.append({
-            key: value(p, settings=settings) for key, value in _fields.items()
-        })
-    return lines
 
 
 class SuccessPanel(wx.Panel):
@@ -190,7 +105,8 @@ class MyPanel(wx.Panel):
 
             board = pcbnew.GetBoard()
 
-            data = build_test_point_report(board, settings=self.settings)
+            pads = get_pads_by_property(board)
+            data = build_test_point_report(board, pads=pads, settings=self.settings)
             if not data:
                 wx.MessageBox("No test point pads found, have you set any?", "Error", wx.OK | wx.ICON_ERROR)
             else:
@@ -215,7 +131,7 @@ class AboutPanel(wx.Panel):
         message_text = wx.StaticText(self, label=Meta.about_text)
         version_text = wx.StaticText(self, label=f"Version: {Meta.version}")
 
-        pre_link_text = wx.StaticText(self, label=f"For more information visit: ")
+        pre_link_text = wx.StaticText(self, label="For more information visit: ")
         from wx.lib.agw.hyperlink import HyperLinkCtrl
         link = HyperLinkCtrl(self, wx.ID_ANY,
                              f"{Meta.website}",
