@@ -1,3 +1,6 @@
 [submodule "libs/kicad-addon-metadata"]
 	path = libs/kicad-addon-metadata
 	url = git@gitlab.com:kicad/addons/metadata.git
+[submodule "libs/kicad-testpoints"]
+	path = libs/kicad-testpoints
+	url = https://github.com/snhobbs/kicad-testpoints
