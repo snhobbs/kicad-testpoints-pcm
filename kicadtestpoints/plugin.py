@@ -69,6 +69,7 @@ class MyPanel(wx.Panel):
             wildcard="CSV files (*.csv)|*.csv",
             path=default_file_path.as_posix(),
         )
+        self.file_output_selector.SetPath(default_file_path.as_posix())
 
         # Lorem Ipsum text
         lorem_text = wx.StaticText(self, label=Meta.body)
@@ -224,8 +225,7 @@ class Plugin(pcbnew.ActionPlugin, object):
     def __init__(self):
         super().__init__()
 
-        logging.basicConfig()
-        _log.setLevel(logging.DEBUG)
+        _log.setLevel(logging.INFO)
         _log.debug("Loading kicad_testpoints")
 
         self.logger = None
@@ -244,5 +244,15 @@ class Plugin(pcbnew.ActionPlugin, object):
             dlg = MyDialog(None, title=Meta.title)
             dlg.ShowModal()
 
+        except Exception as e:
+            _log.error(e)
+            raise
         finally:
+            _log.debug("Destroy Dialog")
             dlg.Destroy()
+
+
+if __name__ == "__main__":
+    app = wx.App()
+    p = Plugin()
+    p.Run()
