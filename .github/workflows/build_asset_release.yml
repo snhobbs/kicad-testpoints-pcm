@@ -1,11 +1,11 @@
 name: Build Asset for Release
-on: 
+on:
   release:
     types: [published]
 
 jobs:
   build:
-    
+
     name: Build
     runs-on: ubuntu-latest
     permissions:

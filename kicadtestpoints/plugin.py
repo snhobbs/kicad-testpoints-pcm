@@ -1,23 +1,33 @@
+import logging
 import os
 import wx
 import wx.aui
 import wx.lib.buttons as buttons
 from pathlib import Path
 import pcbnew
-from . kicad_testpoints import get_pads_by_property, get_pads, build_test_point_report, write_csv, Settings
+
+from kicad_testpoints import (
+    get_pads_by_property,
+    build_test_point_report,
+    write_csv,
+    Settings,
+)
+
+_log = logging.getLogger("kicad_testpoints")
+
 
 class Meta:
-    toolname="kicadtestpoints"
-    title="Test Point Report"
-    body='''Choose test points by setting the desired pads 'Fabrication Property' to 'Test Point Pad'. The output default is in the JigsApp test point report style.
+    toolname = "kicadtestpoints"
+    title = "Test Point Report"
+    body = """Choose test points by setting the desired pads 'Fabrication Property' to 'Test Point Pad'. The output default is in the JigsApp test point report style.
 
 Coordinates are Cartesian with x increasing to the right and y increasing upwards. For correct agreement with generated gerbers and the component placement, ensure the origin used is consistent.
-    '''
-    about_text="This plugin generates TheJigsApp style test points reports. Test more, worry less."
-    short_description="TheJigsApp KiCAD Test Point Report"
-    frame_title="TheJigsApp KiCAD Test Point Report"
-    website="https://www.thejigsapp.com"
-    version='0.1.8'
+    """
+    about_text = "This plugin generates TheJigsApp style test points reports. Test more, worry less."
+    short_description = "TheJigsApp KiCAD Test Point Report"
+    frame_title = "TheJigsApp KiCAD Test Point Report"
+    website = "https://www.thejigsapp.com"
+    version = "0.1.9"
 
 
 class SuccessPanel(wx.Panel):
@@ -40,6 +50,7 @@ def setattr_keywords(obj, name, value):
 
 class MyPanel(wx.Panel):
     def __init__(self, parent):
+        _log.debug("MyPanel.__init__")
         super().__init__(parent)
         self.settings = Settings()
 
@@ -48,11 +59,16 @@ class MyPanel(wx.Panel):
         wd = Path(pcbnew.GetBoard().GetFileName()).absolute()
         if wd.exists():
             dir_ = wd.parent
-        default_file_path = (dir_ / f"{Meta.toolname}-report.csv")
+        default_file_path = dir_ / f"{Meta.toolname}-report.csv"
 
         # File output selector
         file_output_label = wx.StaticText(self, label="File Output:")
-        self.file_output_selector = wx.FilePickerCtrl(self, style=wx.FLP_SAVE | wx.FLP_USE_TEXTCTRL, wildcard="CSV files (*.csv)|*.csv", path=default_file_path.as_posix())
+        self.file_output_selector = wx.FilePickerCtrl(
+            self,
+            style=wx.FLP_SAVE | wx.FLP_USE_TEXTCTRL,
+            wildcard="CSV files (*.csv)|*.csv",
+            path=default_file_path.as_posix(),
+        )
 
         # Lorem Ipsum text
         lorem_text = wx.StaticText(self, label=Meta.body)
@@ -88,10 +104,9 @@ class MyPanel(wx.Panel):
         sizer.Add(button_sizer, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
 
         self.SetSizer(sizer)
-        #self.SetSizeHints(1000,1000)
-        #self.SetMinSize((1000, 1000))  # Set a minimum width and height for the frame
+        # self.SetSizeHints(1000,1000)
+        # self.SetMinSize((1000, 1000))  # Set a minimum width and height for the frame
         self.Layout()
-
 
     def on_checkbox_toggle(self, event):
         checkbox = event.GetEventObject()
@@ -108,13 +123,19 @@ class MyPanel(wx.Panel):
             pads = get_pads_by_property(board)
             data = build_test_point_report(board, pads=pads, settings=self.settings)
             if not data:
-                wx.MessageBox("No test point pads found, have you set any?", "Error", wx.OK | wx.ICON_ERROR)
+                wx.MessageBox(
+                    "No test point pads found, have you set any?",
+                    "Error",
+                    wx.OK | wx.ICON_ERROR,
+                )
             else:
                 write_csv(data, filename=file_path)
                 self.GetTopLevelParent().EndModal(wx.ID_OK)
                 # self.GetParent().ShowSuccessPanel()
         else:
-            wx.MessageBox("Please select a file output path.", "Error", wx.OK | wx.ICON_ERROR)
+            wx.MessageBox(
+                "Please select a file output path.", "Error", wx.OK | wx.ICON_ERROR
+            )
 
     def on_cancel(self, event):
         print("Canceling...")
@@ -124,8 +145,12 @@ class MyPanel(wx.Panel):
 class AboutPanel(wx.Panel):
     def __init__(self, parent):
         super().__init__(parent)
-        font = wx.Font(12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL)
-        bold = wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD)
+        font = wx.Font(
+            12, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL
+        )
+        bold = wx.Font(
+            10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD
+        )
 
         # Static text for about information
         message_text = wx.StaticText(self, label=Meta.about_text)
@@ -133,9 +158,8 @@ class AboutPanel(wx.Panel):
 
         pre_link_text = wx.StaticText(self, label="For more information visit: ")
         from wx.lib.agw.hyperlink import HyperLinkCtrl
-        link = HyperLinkCtrl(self, wx.ID_ANY,
-                             f"{Meta.website}",
-                             URL=Meta.website)
+
+        link = HyperLinkCtrl(self, wx.ID_ANY, f"{Meta.website}", URL=Meta.website)
 
         link.SetColours(wx.BLUE, wx.BLUE, wx.BLUE)
         version_text.SetFont(bold)
@@ -156,9 +180,9 @@ class AboutPanel(wx.Panel):
 
 class MyDialog(wx.Dialog):
     def __init__(self, parent, title):
-        super().__init__(parent, title=title,
-                         style=wx.DEFAULT_DIALOG_STYLE | \
-                         wx.RESIZE_BORDER)
+        super().__init__(
+            parent, title=title, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER
+        )
 
         # Create a notebook with two tabs
         notebook = wx.Notebook(self)
@@ -195,10 +219,14 @@ class MyDialog(wx.Dialog):
         screen_width, screen_height = wx.DisplaySize()
         self.SetSize(wx.Size(screen_width, screen_height))
 
-class Plugin(pcbnew.ActionPlugin, object):
 
+class Plugin(pcbnew.ActionPlugin, object):
     def __init__(self):
         super().__init__()
+
+        logging.basicConfig()
+        _log.setLevel(logging.DEBUG)
+        _log.debug("Loading kicad_testpoints")
 
         self.logger = None
         self.config_file = None
@@ -208,7 +236,7 @@ class Plugin(pcbnew.ActionPlugin, object):
         self.pcbnew_icon_support = hasattr(self, "show_toolbar_button")
         self.show_toolbar_button = True
         icon_dir = os.path.dirname(__file__)
-        self.icon_file_name = os.path.join(icon_dir, 'icon.png')
+        self.icon_file_name = os.path.join(icon_dir, "icon.png")
         self.description = Meta.body
 
     def Run(self):

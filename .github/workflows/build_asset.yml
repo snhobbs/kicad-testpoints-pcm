@@ -1,14 +1,14 @@
 name: Build Asset
-on: 
+on:
   workflow_dispatch:
-    branches: 
+    branches:
 
 permissions:
     contents: write
 
 jobs:
   build:
-    
+
     name: Build
     runs-on: ubuntu-latest
     permissions:
@@ -33,7 +33,7 @@ jobs:
 
       - name: Upload pcm build to action - avoid double-zip
         uses: actions/upload-artifact@v3
-        with: 
+        with:
           name: ${{ env.PCM_NAME }}
           path: ./pcm/build/${{ env.PCM_NAME }}
           retention-days: 7
