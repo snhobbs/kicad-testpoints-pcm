@@ -56,9 +56,12 @@ class MyPanel(wx.Panel):
 
         # Get current working directory
         dir_ = Path(os.getcwd())
-        wd = Path(pcbnew.GetBoard().GetFileName()).absolute()
-        if wd.exists():
-            dir_ = wd.parent
+        board = pcbnew.GetBoard()
+
+        if board:
+            wd = Path(board.GetFileName()).absolute()
+            if wd.exists():
+                dir_ = wd.parent
         default_file_path = dir_ / f"{Meta.toolname}-report.csv"
 
         # File output selector
@@ -120,7 +123,6 @@ class MyPanel(wx.Panel):
             print("File Path:", file_path)
 
             board = pcbnew.GetBoard()
-
             pads = get_pads_by_property(board)
             data = build_test_point_report(board, pads=pads, settings=self.settings)
             if not data:
@@ -221,11 +223,11 @@ class MyDialog(wx.Dialog):
         self.SetSize(wx.Size(screen_width, screen_height))
 
 
-class Plugin(pcbnew.ActionPlugin, object):
+class Plugin(pcbnew.ActionPlugin):
     def __init__(self):
         super().__init__()
 
-        _log.setLevel(logging.INFO)
+        # _log.setLevel(logging.INFO)
         _log.debug("Loading kicad_testpoints")
 
         self.logger = None
@@ -240,8 +242,8 @@ class Plugin(pcbnew.ActionPlugin, object):
         self.description = Meta.body
 
     def Run(self):
+        dlg = MyDialog(None, title=Meta.title)
         try:
-            dlg = MyDialog(None, title=Meta.title)
             dlg.ShowModal()
 
         except Exception as e:
@@ -253,6 +255,8 @@ class Plugin(pcbnew.ActionPlugin, object):
 
 
 if __name__ == "__main__":
+    logging.basicConfig()
+    _log.setLevel(logging.DEBUG)
     app = wx.App()
     p = Plugin()
     p.Run()
