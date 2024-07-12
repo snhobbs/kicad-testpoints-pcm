@@ -5,16 +5,28 @@ import wx.aui
 import wx.lib.buttons as buttons
 from pathlib import Path
 import pcbnew
+import sys
 
-from kicad_testpoints import (
+sys.path.append(Path(__file__).parent.absolute().as_posix())
+
+from kicad_testpoints_ import (
     get_pads_by_property,
     build_test_point_report,
     write_csv,
     Settings,
 )
 
-_log = logging.getLogger("kicad_testpoints")
+_log = logging.getLogger("kicad_testpoints-pcm")
+_log.setLevel(logging.DEBUG)
 
+_board = None
+
+def set_board(board):
+    global _board
+    _board = board
+
+def get_board():
+    return _board
 
 class Meta:
     toolname = "kicadtestpoints"
@@ -56,10 +68,11 @@ class MyPanel(wx.Panel):
 
         # Get current working directory
         dir_ = Path(os.getcwd())
-        board = pcbnew.GetBoard()
+        if pcbnew.GetBoard():
+            set_board(pcbnew.GetBoard())
 
-        if board:
-            wd = Path(board.GetFileName()).absolute()
+        if get_board():
+            wd = Path(get_board().GetFileName()).absolute()
             if wd.exists():
                 dir_ = wd.parent
         default_file_path = dir_ / f"{Meta.toolname}-report.csv"
@@ -122,7 +135,7 @@ class MyPanel(wx.Panel):
             print("Submitting...")
             print("File Path:", file_path)
 
-            board = pcbnew.GetBoard()
+            board = get_board()
             pads = get_pads_by_property(board)
             data = build_test_point_report(board, pads=pads, settings=self.settings)
             if not data:
@@ -227,7 +240,6 @@ class Plugin(pcbnew.ActionPlugin):
     def __init__(self):
         super().__init__()
 
-        # _log.setLevel(logging.INFO)
         _log.debug("Loading kicad_testpoints")
 
         self.logger = None
@@ -257,6 +269,9 @@ class Plugin(pcbnew.ActionPlugin):
 if __name__ == "__main__":
     logging.basicConfig()
     _log.setLevel(logging.DEBUG)
+    import sys
+    if len(sys.argv) > 1:
+        set_board(pcbnew.LoadBoard(sys.argv[1]))
     app = wx.App()
     p = Plugin()
     p.Run()
