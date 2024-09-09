@@ -1,11 +1,11 @@
 import logging
 import os
+import sys
+from pathlib import Path
 import wx
 import wx.aui
-import wx.lib.buttons as buttons
-from pathlib import Path
+from wx.lib import buttons
 import pcbnew
-import sys
 
 sys.path.append(Path(__file__).parent.absolute().as_posix())
 
@@ -129,7 +129,7 @@ class MyPanel(wx.Panel):
         checkbox = event.GetEventObject()
         self.settings.use_aux_origin = checkbox.GetValue()
 
-    def on_submit(self, event):
+    def on_submit(self, _):
         file_path = Path(self.file_output_selector.GetPath())
         if file_path:
             print("Submitting...")
@@ -153,7 +153,7 @@ class MyPanel(wx.Panel):
                 "Please select a file output path.", "Error", wx.OK | wx.ICON_ERROR
             )
 
-    def on_cancel(self, event):
+    def on_cancel(self, _):
         print("Canceling...")
         self.GetTopLevelParent().EndModal(wx.ID_CANCEL)
 
@@ -224,10 +224,10 @@ class MyDialog(wx.Dialog):
         self.GetSizer().Insert(0, self.success_panel)
         self.Layout()
 
-    def on_maximize(self, event):
+    def on_maximize(self, _):
         self.fit_to_screen()
 
-    def on_size(self, event):
+    def on_size(self, _):
         if self.IsMaximized():
             self.fit_to_screen()
 
@@ -269,7 +269,6 @@ class Plugin(pcbnew.ActionPlugin):
 if __name__ == "__main__":
     logging.basicConfig()
     _log.setLevel(logging.DEBUG)
-    import sys
     if len(sys.argv) > 1:
         set_board(pcbnew.LoadBoard(sys.argv[1]))
     app = wx.App()
