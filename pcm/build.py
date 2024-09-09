@@ -5,7 +5,7 @@ import pathlib
 import json
 
 src_path = path.join(path.dirname(__file__), "..", "kicadtestpoints")
-version_path = path.join(src_path, "resource", "_version.py")
+version_path = path.join(src_path, "_version.py")
 
 metadata_template = path.join(path.dirname(__file__), "metadata_template.json")
 resources_path = path.join(path.dirname(__file__), "resources")
