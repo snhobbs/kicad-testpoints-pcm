@@ -16,10 +16,14 @@ from kicad_testpoints_ import (
     Settings,
 )
 
+from _version import __version__
+
 _log = logging.getLogger("kicad_testpoints-pcm")
 _log.setLevel(logging.DEBUG)
 
 _board = None
+_frame_size = (800, 600)
+_min_frame_size = (300, 200)
 
 def set_board(board):
     global _board
@@ -39,21 +43,7 @@ Coordinates are Cartesian with x increasing to the right and y increasing upward
     short_description = "TheJigsApp KiCAD Test Point Report"
     frame_title = "TheJigsApp KiCAD Test Point Report"
     website = "https://www.thejigsapp.com"
-    version = "0.1.9"
-
-
-class SuccessPanel(wx.Panel):
-    def __init__(self, parent):
-        super().__init__(parent)
-
-        # Static text for success message
-        success_text = "Submission successful!"
-        success_label = wx.StaticText(self, label=success_text)
-
-        # Sizer for layout
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(success_label, 0, wx.ALL, 5)
-        self.SetSizer(sizer)
+    version = __version__
 
 
 def setattr_keywords(obj, name, value):
@@ -121,9 +111,6 @@ class MyPanel(wx.Panel):
         sizer.Add(button_sizer, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
 
         self.SetSizer(sizer)
-        # self.SetSizeHints(1000,1000)
-        # self.SetMinSize((1000, 1000))  # Set a minimum width and height for the frame
-        self.Layout()
 
     def on_checkbox_toggle(self, event):
         checkbox = event.GetEventObject()
@@ -147,7 +134,6 @@ class MyPanel(wx.Panel):
             else:
                 write_csv(data, filename=file_path)
                 self.GetTopLevelParent().EndModal(wx.ID_OK)
-                # self.GetParent().ShowSuccessPanel()
         else:
             wx.MessageBox(
                 "Please select a file output path.", "Error", wx.OK | wx.ICON_ERROR
@@ -204,7 +190,6 @@ class MyDialog(wx.Dialog):
         notebook = wx.Notebook(self)
         tab_panel = MyPanel(notebook)
         about_panel = AboutPanel(notebook)
-        self.success_panel = SuccessPanel(notebook)
 
         notebook.AddPage(tab_panel, "Main")
         notebook.AddPage(about_panel, "About")
@@ -213,16 +198,12 @@ class MyDialog(wx.Dialog):
         sizer = wx.BoxSizer(wx.HORIZONTAL)
         sizer.Add(notebook, 1, wx.EXPAND | wx.ALL, 10)
         self.SetSizer(sizer)
-        self.SetSizeHints(500, 500)  # Set minimum size hints
+        self.SetSize(_frame_size)
+        self.SetMinSize(_min_frame_size)
 
     def on_close(self, event):
         self.EndModal(wx.ID_CANCEL)
         event.Skip()
-
-    def ShowSuccessPanel(self):
-        self.GetSizer().GetChildren()[0].GetWindow().Destroy()
-        self.GetSizer().Insert(0, self.success_panel)
-        self.Layout()
 
     def on_maximize(self, _):
         self.fit_to_screen()

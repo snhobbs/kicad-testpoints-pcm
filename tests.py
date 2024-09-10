@@ -3,7 +3,7 @@ import sys
 import pathlib
 
 sys.path.append(pathlib.Path(__file__).parent.as_posix())
-sys.path.append((pathlib.Path(__file__).parent / "kicadtestpoints/").as_posix())
+sys.path.append((pathlib.Path(__file__).parent / "src/").as_posix())
 
 from kicadtestpoints import kicad_testpoints
 # import plugin
