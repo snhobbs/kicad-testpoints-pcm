@@ -1,52 +1,55 @@
 import os
-from os import path
 import shutil
-import pathlib
+from pathlib import Path
 import json
+import re
+download_url = "https://github.com/TheJigsApp/kicad-testpoints-pcm/releases/download/"
 
-src_path = path.join(path.dirname(__file__), "..", "src")
-version_path = path.join(src_path, "_version.py")
+def make_release_dir(version):
+    return f"v{0}/kicad-testpoints-{0}-pcm".format(version)
 
-metadata_template = path.join(path.dirname(__file__), "metadata_template.json")
-resources_path = path.join(path.dirname(__file__), "resources")
+src_path = (Path(__file__).parent.parent / "src").absolute()
+version_path = src_path / "_version.py"
 
-build_path = path.join("build")
+metadata_template = Path(__file__).parent / "metadata_template.json"
+build_path = Path("build").absolute()
+
+icons_path = src_path.parent / "icons"
+resources_path = icons_path
 
 # Delete build and recreate
 try:
     shutil.rmtree(build_path)
 except FileNotFoundError:
     pass
-os.mkdir(build_path)
-os.mkdir(path.join(build_path, "plugin"))
-os.chdir(build_path)
+os.makedirs(build_path / "plugin")
+os.makedirs(build_path / "plugin" / "resources")
 
 # Copy plugin
-shutil.copytree(src_path, path.join("plugin", "plugins"))
+shutil.copytree(src_path, build_path / "plugin" / "plugins")
+shutil.copy(
+    icons_path / "icon-64x64.png", build_path / "plugin" / "resources" / "icon.png"
+)
 
 # Clean out any __pycache__ or .pyc files (https://stackoverflow.com/a/41386937)
-[p.unlink() for p in pathlib.Path(".").rglob("*.py[co]")]
-[p.rmdir() for p in pathlib.Path(".").rglob("__pycache__")]
+[p.unlink() for p in build_path.rglob("*.py[co]")]
+[p.rmdir() for p in build_path.rglob("__pycache__")]
 
 # Don't include test_dialog.py. It isn't needed. It's a developer thing.
-[p.unlink() for p in pathlib.Path(".").rglob("test_dialog.py")]
-
-# Copy icon
-shutil.copytree(resources_path, path.join("plugin", "resources"))
+[p.unlink() for p in build_path.rglob("test_dialog.py")]
 
 # Copy metadata
-metadata = path.join("plugin", "metadata.json")
+metadata = build_path / "plugin" / "metadata.json"
 shutil.copy(metadata_template, metadata)
 
 # Load up json script
-with open(metadata) as f:
+with metadata.open("r") as f:
     md = json.load(f)
 
 # Get version from resource/_version.py
 # https://stackoverflow.com/a/7071358
-import re
 
-verstrline = open(version_path, "rt").read()
+verstrline = version_path.open("rt").read()
 VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
 mo = re.search(VSRE, verstrline, re.M)
 if mo:
@@ -58,19 +61,18 @@ else:
 md["versions"][0].update(
     {
         "version": verstr,
-        "download_url": "https://github.com/TheJigsApp/kicad-testpoints-pcm/releases/download/v{0}/kicadtestpoints-{0}-pcm.zip".format(
-            verstr
-        ),
+        "download_url": download_url + make_release_dir(verstr) + ".zip"
     }
 )
 
 # Update metadata.json
-with open(metadata, "w") as of:
+with metadata.open("w") as of:
     json.dump(md, of, indent=2)
 
 # Zip all files
-zip_file = "kicadtestpoints-{0}-pcm.zip".format(md["versions"][0]["version"])
-shutil.make_archive(pathlib.Path(zip_file).stem, "zip", "plugin")
+pcm_name = make_release_dir(verstr)
+pcm_path = build_path / pcm_name
+zip_file = shutil.make_archive(pcm_path, "zip", build_path / "plugin")
 
 # Rename the plugin directory so we can upload it as an artifact - and avoid the double-zip
-shutil.move("plugin", "kicadtestpoints-{0}-pcm".format(md["versions"][0]["version"]))
+shutil.move(build_path / "plugin", pcm_path)
