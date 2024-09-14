@@ -7,7 +7,8 @@ import wx.aui
 from wx.lib import buttons
 import pcbnew
 
-sys.path.append(Path(__file__).parent.absolute().as_posix())
+path_ = Path(__file__).parent.absolute()
+sys.path.append(str(path_))
 
 from kicad_testpoints_ import (
     get_pads_by_property,
@@ -26,23 +27,34 @@ _frame_size = (800, 600)
 _min_frame_size = (300, 200)
 
 def set_board(board):
+    """
+    Sets the board global.
+    """
     global _board
     _board = board
 
 def get_board():
+    """
+    Use instead of pcbnew.GetBoard to allow
+    command line use.
+    """
     return _board
 
 class Meta:
+    """
+    Information about package
+    """
     toolname = "kicadtestpoints"
     title = "Test Point Report"
-    body = """Choose test points by setting the desired pads 'Fabrication Property' to 'Test Point Pad'. The output default is in the JigsApp test point report style.
-
-Coordinates are Cartesian with x increasing to the right and y increasing upwards. For correct agreement with generated gerbers and the component placement, ensure the origin used is consistent.
-    """
+    body = ("Choose test points by setting the desired pads 'Fabrication Property' to \
+'Test Point Pad'. The output default is in the JigsApp test point report style.\
+Coordinates are Cartesian with x increasing to the right and y increasing upwards.\
+For correct agreement with generated gerbers and the component placement, ensure the origin used is consistent.")
     about_text = "This plugin generates TheJigsApp style test points reports. Test more, worry less."
     short_description = "TheJigsApp KiCAD Test Point Report"
     frame_title = "TheJigsApp KiCAD Test Point Report"
     website = "https://www.thejigsapp.com"
+    gitlink = "https://github.com/snhobbs/kicad-testpoints-pcm"
     version = __version__
 
 
@@ -154,29 +166,47 @@ class AboutPanel(wx.Panel):
             10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_BOLD
         )
 
-        # Static text for about information
-        message_text = wx.StaticText(self, label=Meta.about_text)
-        version_text = wx.StaticText(self, label=f"Version: {Meta.version}")
-
-        pre_link_text = wx.StaticText(self, label="For more information visit: ")
-        from wx.lib.agw.hyperlink import HyperLinkCtrl
-
-        link = HyperLinkCtrl(self, wx.ID_ANY, f"{Meta.website}", URL=Meta.website)
-
-        link.SetColours(wx.BLUE, wx.BLUE, wx.BLUE)
-        version_text.SetFont(bold)
-        message_text.SetFont(font)
-        pre_link_text.SetFont(font)
-
         sizer = wx.BoxSizer(wx.VERTICAL)
+
+        # Static text for about information
+        version_text = wx.StaticText(self, label=f"Version: {Meta.version}")
+        version_text.SetFont(bold)
         sizer.Add(version_text, 1, wx.EXPAND | wx.ALL, 5)
+
+        message_text = wx.StaticText(self, label=Meta.about_text)
+        message_text.SetFont(font)
         sizer.Add(message_text, 1, wx.EXPAND | wx.ALL, 5)
 
+        body_text = wx.StaticText(self, label=Meta.body)
+        body_text.SetFont(font)
+        sizer.Add(body_text, 5, wx.EXPAND | wx.ALL, 5)
+
+        from wx.lib.agw.hyperlink import HyperLinkCtrl
         link_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        pre_link_text = wx.StaticText(self, label="Brought to you by: ")
+        pre_link_text.SetFont(font)
         link_sizer.Add(pre_link_text, 0, wx.EXPAND, 0)
+
+        link = HyperLinkCtrl(self, wx.ID_ANY, f"{Meta.website}", URL=Meta.website)
+        link.SetFont(font)
+        link.SetColours(wx.BLUE, wx.BLUE, wx.BLUE)
         link_sizer.Add(link, 0, wx.EXPAND, 0)
+
         sizer.Add(link_sizer, 1, wx.EXPAND | wx.ALL, 5)
 
+        gh_link_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        gh_pre_link_text = wx.StaticText(self, label="Git Repo: ")
+        gh_pre_link_text.SetFont(font)
+        gh_link_sizer.Add(gh_pre_link_text, 0, wx.EXPAND, 0)
+
+        gh_link = HyperLinkCtrl(self, wx.ID_ANY, f"{Meta.gitlink}", URL=Meta.gitlink)
+        gh_link.SetFont(font)
+        gh_link.SetColours(wx.BLUE, wx.BLUE, wx.BLUE)
+        gh_link_sizer.Add(gh_link, 0, wx.EXPAND, 0)
+
+        sizer.Add(gh_link_sizer, 1, wx.EXPAND | wx.ALL, 5)
         self.SetSizer(sizer)
 
 
@@ -185,6 +215,8 @@ class MyDialog(wx.Dialog):
         super().__init__(
             parent, title=title, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER
         )
+
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         # Create a notebook with two tabs
         notebook = wx.Notebook(self)
@@ -195,7 +227,6 @@ class MyDialog(wx.Dialog):
         notebook.AddPage(about_panel, "About")
 
         # Sizer for layout
-        sizer = wx.BoxSizer(wx.HORIZONTAL)
         sizer.Add(notebook, 1, wx.EXPAND | wx.ALL, 10)
         self.SetSizer(sizer)
         self.SetSize(_frame_size)
