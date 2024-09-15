@@ -6,6 +6,7 @@ import wx
 import wx.aui
 from wx.lib import buttons
 import pcbnew
+import dataclasses
 
 path_ = Path(__file__).parent.absolute()
 sys.path.append(str(path_))
@@ -24,7 +25,7 @@ _log.setLevel(logging.DEBUG)
 
 _board = None
 _frame_size = (800, 600)
-_min_frame_size = (300, 200)
+_frame_size_min = (300, 200)
 
 def set_board(board):
     """
@@ -40,22 +41,27 @@ def get_board():
     """
     return _board
 
+@dataclasses.dataclass
 class Meta:
     """
     Information about package
     """
-    toolname = "kicadtestpoints"
-    title = "Test Point Report"
-    body = ("Choose test points by setting the desired pads 'Fabrication Property' to \
-'Test Point Pad'. The output default is in the JigsApp test point report style.\
-Coordinates are Cartesian with x increasing to the right and y increasing upwards.\
-For correct agreement with generated gerbers and the component placement, ensure the origin used is consistent.")
-    about_text = "This plugin generates TheJigsApp style test points reports. Test more, worry less."
-    short_description = "TheJigsApp KiCAD Test Point Report"
-    frame_title = "TheJigsApp KiCAD Test Point Report"
-    website = "https://www.thejigsapp.com"
-    gitlink = "https://github.com/snhobbs/kicad-testpoints-pcm"
-    version = __version__
+    toolname : str = "kicadtestpoints"
+    title : str = "Test Point Report"
+    body : str = ("Choose test points by setting the desired pads 'Fabrication Property' to \
+'Test Point Pad'. The output default is in the JigsApp test point report style. \
+Coordinates are Cartesian with x increasing to the right and y increasing upwards. \
+For correct agreement with generated gerbers and the component placement, ensure the \
+origin used is consistent.")
+    about_text : str = "This plugin generates TheJigsApp style test points reports. Test more, worry less."
+    short_description : str = "TheJigsApp KiCAD Test Point Report"
+    frame_title : str = "TheJigsApp KiCAD Test Point Report"
+    website : str = "https://www.thejigsapp.com"
+    gitlink : str = "https://github.com/snhobbs/kicad-testpoints-pcm"
+    version : str = __version__
+    category : str = "Read PCB"
+    icon_dir : Path =  Path(__file__).parent
+    icon_base_file_name : str = "icon.png"
 
 
 def setattr_keywords(obj, name, value):
@@ -89,14 +95,13 @@ class MyPanel(wx.Panel):
         )
         self.file_output_selector.SetPath(default_file_path.as_posix())
 
-        # Lorem Ipsum text
         lorem_text = wx.StaticText(self, label=Meta.body)
 
         # Buttons
         self.submit_button = buttons.GenButton(self, label="Submit")
         self.cancel_button = buttons.GenButton(self, label="Cancel")
-        self.submit_button.SetBackgroundColour(wx.Colour(150, 225, 150))
-        self.cancel_button.SetBackgroundColour(wx.Colour(225, 150, 150))
+        self.submit_button.SetBackgroundColour(wx.Colour(100, 225, 100))
+        self.cancel_button.SetBackgroundColour(wx.Colour(225, 100, 100))
         self.submit_button.Bind(wx.EVT_BUTTON, self.on_submit)
         self.cancel_button.Bind(wx.EVT_BUTTON, self.on_cancel)
 
@@ -105,7 +110,7 @@ class MyPanel(wx.Panel):
         button_sizer.Add(self.submit_button, 0, wx.ALL | wx.EXPAND, 5)
         button_sizer.Add(self.cancel_button, 0, wx.ALL, 5)
 
-        # Origin selectiondd
+        # Origin selection
         self.use_aux_origin_cb = wx.CheckBox(self, label="Use drill/place file origin")
         self.use_aux_origin_cb.SetValue(True)
         self.settings.use_aux_origin = self.use_aux_origin_cb.GetValue()
@@ -113,7 +118,6 @@ class MyPanel(wx.Panel):
         self.Bind(wx.EVT_CHECKBOX, self.on_checkbox_toggle)
 
         # Sizer for layout
-        # sizer = wx.BoxSizer(wx.HORIZONTAL)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.use_aux_origin_cb, 0, wx.ALL, 10)
 
@@ -130,26 +134,39 @@ class MyPanel(wx.Panel):
 
     def on_submit(self, _):
         file_path = Path(self.file_output_selector.GetPath())
-        if file_path:
-            print("Submitting...")
-            print("File Path:", file_path)
-
-            board = get_board()
-            pads = get_pads_by_property(board)
-            data = build_test_point_report(board, pads=pads, settings=self.settings)
-            if not data:
-                wx.MessageBox(
-                    "No test point pads found, have you set any?",
-                    "Error",
-                    wx.OK | wx.ICON_ERROR,
-                )
-            else:
-                write_csv(data, filename=file_path)
-                self.GetTopLevelParent().EndModal(wx.ID_OK)
-        else:
+        if not file_path:
             wx.MessageBox(
                 "Please select a file output path.", "Error", wx.OK | wx.ICON_ERROR
             )
+            return
+
+        print("Submitting...")
+        print("File Path:", file_path)
+
+        board = get_board()
+        pads = get_pads_by_property(board)
+        data = build_test_point_report(board, pads=pads, settings=self.settings)
+        if not data:
+            wx.MessageBox(
+                "No test point pads found, have you set any?",
+                "Error",
+                wx.OK | wx.ICON_ERROR,
+            )
+            return
+
+        nets = set(board.GetNetsByName())
+        tp_nets = set([pt["net"] for pt in data])
+
+        write_csv(data, filename=file_path)
+
+        wx.MessageBox(
+            "Coverage: %d / %d nets\n\nSaved to: %s"%(len(tp_nets), len(nets), file_path),
+            "Success",
+            wx.OK,
+        )
+
+        self.GetTopLevelParent().EndModal(wx.ID_OK)
+        return
 
     def on_cancel(self, _):
         print("Canceling...")
@@ -184,7 +201,7 @@ class AboutPanel(wx.Panel):
         from wx.lib.agw.hyperlink import HyperLinkCtrl
         link_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
-        pre_link_text = wx.StaticText(self, label="Brought to you by: ")
+        pre_link_text = wx.StaticText(self, label="Brought to you by TheJigsApp: ")
         pre_link_text.SetFont(font)
         link_sizer.Add(pre_link_text, 0, wx.EXPAND, 0)
 
@@ -211,11 +228,15 @@ class AboutPanel(wx.Panel):
 
 
 class MyDialog(wx.Dialog):
+    """
+    Top level GUI view
+    """
     def __init__(self, parent, title):
         super().__init__(
             parent, title=title, style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER
         )
 
+        # Sizer for layout
         sizer = wx.BoxSizer(wx.HORIZONTAL)
 
         # Create a notebook with two tabs
@@ -226,11 +247,11 @@ class MyDialog(wx.Dialog):
         notebook.AddPage(tab_panel, "Main")
         notebook.AddPage(about_panel, "About")
 
-        # Sizer for layout
         sizer.Add(notebook, 1, wx.EXPAND | wx.ALL, 10)
+
         self.SetSizer(sizer)
+        self.SetMinSize(_frame_size_min)
         self.SetSize(_frame_size)
-        self.SetMinSize(_min_frame_size)
 
     def on_close(self, event):
         self.EndModal(wx.ID_CANCEL)
@@ -248,25 +269,42 @@ class MyDialog(wx.Dialog):
         self.SetSize(wx.Size(screen_width, screen_height))
 
 
+def get_gui_frame(name: str = "PcbFrame"):
+    pcb_frame = None
+
+    try:
+        pcb_frame = [
+            x for x in wx.GetTopLevelWindows() if x.GetName() == name
+        ][0]
+    except IndexError:
+        pass
+    return pcb_frame
+
+
 class Plugin(pcbnew.ActionPlugin):
     def __init__(self):
         super().__init__()
 
         _log.debug("Loading kicad_testpoints")
 
-        self.logger = None
+        self.logger = _log
         self.config_file = None
 
         self.name = Meta.title
-        self.category = "Read PCB"
+        self.category = Meta.category
         self.pcbnew_icon_support = hasattr(self, "show_toolbar_button")
         self.show_toolbar_button = True
-        icon_dir = os.path.dirname(__file__)
-        self.icon_file_name = os.path.join(icon_dir, "icon.png")
         self.description = Meta.body
 
+        icon_file_path = Meta.icon_dir / Meta.icon_base_file_name
+        # assert icon_file_path.exists()
+        self.icon_file_name = str(icon_file_path)
+
+    def defaults(self):
+        pass
+
     def Run(self):
-        dlg = MyDialog(None, title=Meta.title)
+        dlg = MyDialog(get_gui_frame(name="PcbFrame"), title=Meta.title)
         try:
             dlg.ShowModal()
 
