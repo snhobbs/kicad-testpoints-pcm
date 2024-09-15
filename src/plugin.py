@@ -61,7 +61,8 @@ origin used is consistent.")
     version : str = __version__
     category : str = "Read PCB"
     icon_dir : Path =  Path(__file__).parent
-    icon_base_file_name : str = "icon.png"
+    icon_file_path : Path = icon_dir / "icon-24x24.png"
+    # assert icon_file_path.exists()
 
 
 def setattr_keywords(obj, name, value):
@@ -295,10 +296,7 @@ class Plugin(pcbnew.ActionPlugin):
         self.pcbnew_icon_support = hasattr(self, "show_toolbar_button")
         self.show_toolbar_button = True
         self.description = Meta.body
-
-        icon_file_path = Meta.icon_dir / Meta.icon_base_file_name
-        # assert icon_file_path.exists()
-        self.icon_file_name = str(icon_file_path)
+        self.icon_file_name = str(Meta.icon_file_path)
 
     def defaults(self):
         pass

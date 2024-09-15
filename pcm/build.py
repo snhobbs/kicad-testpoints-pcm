@@ -10,12 +10,11 @@ def make_release_dir(version):
 
 src_path = (Path(__file__).parent.parent / "src").absolute()
 version_path = src_path / "_version.py"
-
-metadata_template = Path(__file__).parent / "metadata_template.json"
-build_path = Path("build").absolute()
-
 icons_path = src_path.parent / "icons"
 resources_path = icons_path
+metadata_template = Path(__file__).parent / "metadata_template.json"
+
+build_path = Path("build").absolute()
 
 # Delete build and recreate
 try:
@@ -29,6 +28,9 @@ os.makedirs(build_path / "plugin" / "resources")
 shutil.copytree(src_path, build_path / "plugin" / "plugins")
 shutil.copy(
     icons_path / "icon-64x64.png", build_path / "plugin" / "resources" / "icon.png"
+)
+shutil.copy(
+    icons_path / "icon-24x24.png", build_path / "plugin" / "plugins" / "icon-24x24.png"
 )
 
 # Clean out any __pycache__ or .pyc files (https://stackoverflow.com/a/41386937)
