@@ -6,7 +6,7 @@ import re
 download_url = "https://github.com/TheJigsApp/kicad-testpoints-pcm/releases/download/"
 
 def make_release_dir(version):
-    return f"v{version}/kicad-testpoints-{version}-pcm"
+    return f"v{version}/kicadtestpoints-{version}-pcm"
 
 src_path = (Path(__file__).parent.parent / "src").absolute()
 version_path = src_path / "_version.py"

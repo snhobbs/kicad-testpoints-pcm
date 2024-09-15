@@ -25,7 +25,7 @@ _log.setLevel(logging.DEBUG)
 
 _board = None
 _frame_size = (800, 600)
-_frame_size_min = (300, 200)
+_frame_size_min = (300, 400)
 
 def set_board(board):
     """
@@ -48,14 +48,13 @@ class Meta:
     """
     toolname : str = "kicadtestpoints"
     title : str = "Test Point Report"
-    body : str = ("Choose test points by setting the desired pads 'Fabrication Property' to \
-'Test Point Pad'. The output default is in the JigsApp test point report style. \
-Coordinates are Cartesian with x increasing to the right and y increasing upwards. \
-For correct agreement with generated gerbers and the component placement, ensure the \
-origin used is consistent.")
+    body : str = ("Choose test points by setting the desired pads 'Fabrication Property' to "
+    "'Test Point Pad'. The output default is in the JigsApp test point report style. "
+    "Coordinates are Cartesian with x increasing to the right and y increasing upwards. "
+    "Note that the origin used should be consistent between gerbers and the test points.")
     about_text : str = "This plugin generates TheJigsApp style test points reports. Test more, worry less."
-    short_description : str = "TheJigsApp KiCAD Test Point Report"
-    frame_title : str = "TheJigsApp KiCAD Test Point Report"
+    short_description : str = "TheJigsApp KiCAD Testpoint Report"
+    frame_title : str = "TheJigsApp Fabrication Testpoint Setup"
     website : str = "https://www.thejigsapp.com"
     gitlink : str = "https://github.com/snhobbs/kicad-testpoints-pcm"
     version : str = __version__
@@ -80,14 +79,35 @@ class MyPanel(wx.Panel):
         if pcbnew.GetBoard():
             set_board(pcbnew.GetBoard())
 
+        dir_path = Path(os.path.curdir)
+        stem = Meta.toolname
         if get_board():
             wd = Path(get_board().GetFileName()).absolute()
             if wd.exists():
-                dir_ = wd.parent
-        default_file_path = dir_ / f"{Meta.toolname}-report.csv"
+                dir_path = wd.parent
+                stem = wd.stem
+
+        default_file_path = dir_path / f"{stem}-testpoints.csv"
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        body_text = wx.StaticText(self, label=Meta.body)
+        sizer.Add(body_text, 1, wx.EXPAND | wx.ALL, 5)
+
+        # Origin selection
+        choices = (
+            "Reference to file/drill origin",
+            "Reference to absolute origin"
+        )
+        self.coordinate_selection = wx.RadioBox(self, label='Coordinate Positions', choices=choices, majorDimension=2, style=wx.RA_SPECIFY_ROWS)
+
+        sizer.Add(self.coordinate_selection, 0, wx.ALL, 10)
+
 
         # File output selector
         file_output_label = wx.StaticText(self, label="File Output:")
+        sizer.Add(file_output_label, 0, wx.ALL, 5)
+
         self.file_output_selector = wx.FilePickerCtrl(
             self,
             style=wx.FLP_SAVE | wx.FLP_USE_TEXTCTRL,
@@ -95,43 +115,24 @@ class MyPanel(wx.Panel):
             path=default_file_path.as_posix(),
         )
         self.file_output_selector.SetPath(default_file_path.as_posix())
-
-        lorem_text = wx.StaticText(self, label=Meta.body)
+        sizer.Add(self.file_output_selector, 0, wx.EXPAND | wx.ALL, 5)
 
         # Buttons
         self.submit_button = buttons.GenButton(self, label="Submit")
         self.cancel_button = buttons.GenButton(self, label="Cancel")
-        self.submit_button.SetBackgroundColour(wx.Colour(100, 225, 100))
-        self.cancel_button.SetBackgroundColour(wx.Colour(225, 100, 100))
+        self.submit_button.SetBackgroundColour(wx.Colour(50, 225, 50))
+        self.cancel_button.SetBackgroundColour(wx.Colour(225, 50, 50))
         self.submit_button.Bind(wx.EVT_BUTTON, self.on_submit)
         self.cancel_button.Bind(wx.EVT_BUTTON, self.on_cancel)
 
         # Horizontal box sizer for buttons
         button_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        button_sizer.Add(self.submit_button, 0, wx.ALL | wx.EXPAND, 5)
         button_sizer.Add(self.cancel_button, 0, wx.ALL, 5)
-
-        # Origin selection
-        self.use_aux_origin_cb = wx.CheckBox(self, label="Use drill/place file origin")
-        self.use_aux_origin_cb.SetValue(True)
-        self.settings.use_aux_origin = self.use_aux_origin_cb.GetValue()
-
-        self.Bind(wx.EVT_CHECKBOX, self.on_checkbox_toggle)
-
-        # Sizer for layout
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.use_aux_origin_cb, 0, wx.ALL, 10)
-
-        sizer.Add(file_output_label, 0, wx.ALL, 5)
-        sizer.Add(self.file_output_selector, 0, wx.EXPAND | wx.ALL, 5)
-        sizer.Add(lorem_text, 1, wx.EXPAND | wx.ALL, 5)
+        button_sizer.Add(self.submit_button, 0, wx.ALL | wx.EXPAND, 5)
         sizer.Add(button_sizer, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
 
+        # Sizer for layout
         self.SetSizer(sizer)
-
-    def on_checkbox_toggle(self, event):
-        checkbox = event.GetEventObject()
-        self.settings.use_aux_origin = checkbox.GetValue()
 
     def on_submit(self, _):
         file_path = Path(self.file_output_selector.GetPath())
@@ -141,8 +142,13 @@ class MyPanel(wx.Panel):
             )
             return
 
+        self.settings.use_aux_origin = self.coordinate_selection.GetSelection() == 0
+
         print("Submitting...")
         print("File Path:", file_path)
+
+        msg = f"Aux origin {self.settings.use_aux_origin}"
+        _log.debug(msg)
 
         board = get_board()
         pads = get_pads_by_property(board)
