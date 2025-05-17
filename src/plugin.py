@@ -83,10 +83,10 @@ class MyPanel(wx.Panel):
         dir_path = Path(os.path.curdir)
         stem = Meta.toolname
         if get_board():
+            stem = Path(get_board().GetFileName()).stem
             wd = Path(get_board().GetFileName()).absolute()
             if wd.exists():
                 dir_path = wd.parent
-                stem = wd.stem
 
         default_file_path = dir_path / f"{stem}-testpoints.csv"
 
@@ -124,8 +124,8 @@ class MyPanel(wx.Panel):
 
         self.file_output_selector = wx.FilePickerCtrl(
             self,
-            style=wx.FLP_SAVE | wx.FLP_USE_TEXTCTRL,
-            wildcard="CSV files (*.csv)|*.csv",
+            style=wx.FLP_SAVE | wx.FLP_USE_TEXTCTRL | wx.FLP_OVERWRITE_PROMPT,
+            wildcard="CSV files (*.csv)|*.csv|All files (*.*)|*.*",
             path=default_file_path.as_posix(),
         )
         self.file_output_selector.SetPath(default_file_path.as_posix())
