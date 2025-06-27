@@ -1,0 +1,57 @@
+name: Build KiCad PCM Package
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v0.1.4
+
+env:
+  PACKAGE_NAME: kicad-testpoints
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write  # Needed to upload to GitHub Releases
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install bump2version
+        run: pip install bump2version
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          TAG="${GITHUB_REF##*/}"              # e.g., "v0.1.4"
+          VERSION="${TAG#v}"                   # strip leading "v"
+          echo "VERSION=$VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Roll Version
+        run: |
+          bump2version --allow-dirty --new-version ${{env.VERSION}} patch src/_version.py
+
+      - name: Build PCM package
+        run: |
+          python3 ${{ github.workspace }}/pcm/build.py
+          echo "Built package:"
+          ls -lh ${{ github.workspace }}/build/*
+
+
+      - name: Upload PCM package to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ github.workspace }}/build/v${{ env.VERSION }}/${{ env.PACKAGE_NAME }}-${{ env.VERSION }}-pcm.zip

@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import logging
 import os
 import sys
@@ -6,9 +7,8 @@ import wx
 import wx.aui
 from wx.lib import buttons
 import pcbnew
-import dataclasses
 
-path_ = Path(__file__).parent.absolute()
+path_ = Path(__file__).resolve().parent.absolute()
 sys.path.append(str(path_))
 
 from kicad_testpoints_ import (
@@ -23,7 +23,7 @@ from _version import __version__
 _log = logging.getLogger("kicad_testpoints-pcm")
 _log.setLevel(logging.DEBUG)
 
-_board = None
+_g_board = None
 _frame_size = (800, 600)
 _frame_size_min = (300, 400)
 
@@ -31,18 +31,18 @@ def set_board(board):
     """
     Sets the board global.
     """
-    global _board
-    _board = board
+    global _g_board
+    _g_board = board
 
 def get_board():
     """
     Use instead of pcbnew.GetBoard to allow
     command line use.
     """
-    return _board
+    return _g_board
 
 
-@dataclasses.dataclass
+@dataclass
 class Meta:
     """
     Information about package
@@ -76,7 +76,6 @@ class MyPanel(wx.Panel):
         self.settings = Settings()
 
         # Get current working directory
-        dir_ = Path(os.getcwd())
         if pcbnew.GetBoard():
             set_board(pcbnew.GetBoard())
 
@@ -172,7 +171,7 @@ class MyPanel(wx.Panel):
             return
 
         nets = set(board.GetNetsByName())
-        tp_nets = set([pt["net"] for pt in data])
+        tp_nets = set(pt["net"] for pt in data)
 
         write_csv(data, filename=file_path)
 
@@ -332,11 +331,31 @@ class Plugin(pcbnew.ActionPlugin):
             dlg.Destroy()
 
 
-if __name__ == "__main__":
+def cli():
+    import argparse
+
     logging.basicConfig()
     _log.setLevel(logging.DEBUG)
-    if len(sys.argv) > 1:
-        set_board(pcbnew.LoadBoard(sys.argv[1]))
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("board", nargs="?", help="Path to .kicad_pcb")
+    parser.add_argument("--version", action="store_true", help="Print version")
+    args = parser.parse_args()
+
+    if args.version:
+        print(f"{Meta.toolname} version {Meta.version}")
+        return
+
+    if not args.board:
+        _log.error("No board loaded")
+
+    else:
+        set_board(pcbnew.LoadBoard(args.board))
     app = wx.App()
     p = Plugin()
     p.Run()
+    app = wx.App(False)  # False = don't redirect stdout/stderr
+    app.SetAppName("KiCadPartsPlacer")
+
+if __name__ == "__main__":
+    cli()
