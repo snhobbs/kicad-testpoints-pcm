@@ -6,7 +6,7 @@ on:
       - 'v*'  # Trigger on version tags like v0.1.4
 
 env:
-  PACKAGE_NAME: kicad-testpoints
+  PACKAGE_NAME: kicadtestpoints
 
 jobs:
   build-and-release:
